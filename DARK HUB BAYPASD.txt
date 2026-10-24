@@ -1,4 +1,3 @@
-
 --[[
 DARK HUB v33.2 (OPTIMIZED — sem lag) — GROUND + 1-CLICK + TELEPORT-BUG + FLY-BACK + CHICKEN + GEAR + AUTO-HIT + MINI IMG
 ]]
@@ -519,14 +518,50 @@ local curRec = findRecord(uid)
 if curRec and curRec.State == "Carried" and curRec.CarrierUserId and curRec.CarrierUserId ~= LP.UserId then return trackAndSteal(curRec.CarrierUserId, uid) end
 pcall(function() if EggState.CarryFieldEgg then EggState.CarryFieldEgg(uid, slotKey) end end)
 tryPromptNear(18)
-task.wait(0e → planta → volta voando
+task.wait(0.1)
+end
+if isCarryingEgg() then return true end
+return false
+end
+local function getPlot1Pos()
+local plots = Workspace:FindFirstChild("Plots") if not plots then return Vector3.new(464.7, 70.4, -364.0) end
+local plot = plots:FindFirstChild("1") if not plot then return Vector3.new(464.7, 70.4, -364.0) end
+local sp = plot:FindFirstChild("SpawnPoint")
+if sp then
+if sp:IsA("BasePart") then return sp.Position end
+if sp:IsA("Attachment") then return sp.WorldPosition end
+if sp:IsA("Model") then local prim = sp.PrimaryPart or sp:FindFirstChildWhichIsA("BasePart") if prim then return prim.Position end end
+local ok, p = pcall(function() return sp.Position end)
+if ok and typeof(p) == "Vector3" then return p end
+end
+if plot:IsA("Model") then local prim = plot.PrimaryPart or plot:FindFirstChildWhichIsA("BasePart") if prim then return prim.Position end
+elseif plot:IsA("BasePart") then return plot.Position end
+return Vector3.new(464.7, 70.4, -364.0)
+end
+local function plantAllEggs()
+if not EggState or not EggState.PlantEgg or not EggToolDisplay then return 0 end
+local ids = {}
+for _, container in ipairs({LP.Character, LP:FindFirstChild("Backpack")}) do
+if container then for _, t in ipairs(container:GetChildren()) do
+if t:IsA("Tool") and EggToolDisplay.IsEggTool and EggToolDisplay.IsEggTool(t) then
+local uid = EggToolDisplay.GetToolUid and EggToolDisplay.GetToolUid(t)
+if uid then table.insert(ids, uid) end
+end
+end end
+end
+local count = 0
+for _, uid in ipairs(ids) do
+local ok, res = pcall(function() return EggState.PlantEgg(uid, CFrame.new(math.random(-6,6), 0, math.random(-6,6))) end)
+if ok and res then count = count + 1 end
+task.wait(0.1)
+end
+return count
+end
+
 local function returnHome(flyBackPos)
     if not isCarryingEgg() then return false end
-
     local dest = getPlot1Pos()
     local targetPos = Vector3.new(dest.X, dest.Y + 2, dest.Z)
-
-    -- PASSO 1: teleporte único (buga o guardião na hora)
     setStatus("⚡ Teleportando (bug guardian)...", true)
     local _, r1 = getChar()
     if r1 then
@@ -537,8 +572,6 @@ local function returnHome(flyBackPos)
     SetSpoofWalkSpeed(HUB.flySpeed)
     if BypassState.integrityState then SpoofState(BypassState.integrityState, HUB.flySpeed * HEADROOM) end
     SyncHoverPad()
-
-    -- PASSO 2: voa pra base (GroundMove — não é revertido)
     setStatus("🏃 Voando pra base...", true)
     local savedDead = HUB.dead
     HUB.dead = false
@@ -546,8 +579,6 @@ local function returnHome(flyBackPos)
         GroundMove(Vector3.new(dest.X, 0, dest.Z), HUB.flySpeed, true)
     end)
     HUB.dead = savedDead
-
-    -- PASSO 3: planta
     setStatus("🌱 Plantando na base...", true)
     local total = 0
     for _ = 1, 5 do
@@ -555,8 +586,6 @@ local function returnHome(flyBackPos)
         task.wait(0.12)
         if not isCarryingEgg() then break end
     end
-
-    -- PASSO 4: volta voando pro local original
     if flyBackPos and typeof(flyBackPos) == "Vector3" then
         setStatus("🏃 Voltando pro local...", true)
         local savedDead2 = HUB.dead
@@ -566,7 +595,6 @@ local function returnHome(flyBackPos)
         end)
         HUB.dead = savedDead2
     end
-
     if setStatus then
         setStatus(total > 0 and ("✅ " .. total .. " plantado(s)") or "⚠️ Nada plantado", false)
     end
@@ -577,7 +605,6 @@ local function runCycle()
     if HUB.busy or HUB.dead or not HUB.running then return end
     HUB.busy = true
     if isCarryingEgg() then returnHome() HUB.busy = false return end
-
     if HUB.activeTarget and HUB.activeTarget.uid then
         local rec = findRecord(HUB.activeTarget.uid)
         if rec then
@@ -590,10 +617,8 @@ local function runCycle()
             HUB.busy = false return
         else HUB.activeTarget = nil end
     end
-
     local eggs = getFieldEggs()
     if #eggs == 0 then HUB.busy = false return end
-
     local target = nil
     if HUB.selectedUid then
         for _, e in ipairs(eggs) do if e.uid == HUB.selectedUid then target = e break end end
@@ -602,7 +627,6 @@ local function runCycle()
         table.sort(eggs, function(a, b) if a.value ~= b.value then return a.value > b.value end return a.rank > b.rank end)
         target = eggs[1]
     end
-
     local _, hrpB = getChar()
     local flyPosB = hrpB and hrpB.Position
     HUB.activeTarget = { uid = target.uid, name = target.name }
@@ -613,7 +637,6 @@ local function runCycle()
     HUB.busy = false
 end
 
--- ⭐ CHICKEN PRÉ-ETAPA
 local ChickenBossFarm = {
     enabled = false, stage = "idle",
     chickenName = "Chicken",
@@ -708,9 +731,24 @@ local screenGui = Instance.new("ScreenGui") screenGui.Name="DarkHubV33" screenGu
 pcall(function() screenGui.Parent = gethui and gethui() or PGui end) if not screenGui.Parent then screenGui.Parent = PGui end
 local miniGui = Instance.new("ScreenGui") miniGui.Name="DarkHubV33_Mini" miniGui.ResetOnSpawn=false miniGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling miniGui.IgnoreGuiInset=true miniGui.DisplayOrder=999
 pcall(function() miniGui.Parent = gethui and gethui() or PGui end) if not miniGui.Parent then miniGui.Parent = PGui end miniGui.Enabled = false
-local miniBtn = Instance.new("TextButton") miniBtn.Size=UDim2.fromOffset(56,56) miniBtn.Position=UDim2.new(0,20,0.5,-28) miniBtn.BackgroundColor3=THEME.accent miniBtn.BorderSizePixel=0 miniBtn.Font=Enum.Font.GothamBlack miniBtn.TextSize=18 miniBtn.TextColor3=THEME.text miniBtn.Text="DH" miniBtn.AutoButtonColor=false miniBtn.Parent=miniGui
-Instance.new("UICorner", miniBtn).CornerRadius=UDim.new(1,0)
+
+local miniBtn = Instance.new("ImageButton")
+miniBtn.Size = UDim2.fromOffset(56,56)
+miniBtn.Position = UDim2.new(0,20,0.5,-28)
+miniBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+miniBtn.BorderSizePixel = 0
+miniBtn.Image = "rbxassetid://112787098505238"
+miniBtn.ImageColor3 = Color3.fromRGB(255,255,255)
+miniBtn.ScaleType = Enum.ScaleType.Fit
+miniBtn.AutoButtonColor = false
+miniBtn.Parent = miniGui
+Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(1,0)
+local miniBtnStroke = Instance.new("UIStroke", miniBtn)
+miniBtnStroke.Color = THEME.stroke
+miniBtnStroke.Thickness = 1.5
+miniBtnStroke.Transparency = 0.2
 miniBtn.MouseButton1Click:Connect(function() screenGui.Enabled=true miniGui.Enabled=false end)
+
 UIS.InputBegan:Connect(function(input, gpe) if gpe then return end if input.KeyCode==Enum.KeyCode.F2 then screenGui.Enabled=not screenGui.Enabled miniGui.Enabled=false end end)
 local win = Instance.new("Frame") win.AnchorPoint=Vector2.new(0,0.5) win.Position=UDim2.new(0,20,0.5,0) win.Size=UDim2.fromOffset(480,700) win.BackgroundColor3=THEME.bgTop win.BorderSizePixel=0 win.Active=true win.Parent=screenGui
 Instance.new("UICorner", win).CornerRadius=UDim.new(0,14)
@@ -829,136 +867,7 @@ if EggState.FieldGone then EggState.FieldGone:Connect(function() refreshDirty = 
 if EggState.FieldClaimed then EggState.FieldClaimed:Connect(function() refreshDirty = true end) end
 end) end
 
--- ⭐ 1-CLICK UNIVERSAL
-local function SingleClickPickup(uid, eggName)
-    if HUB.dead then return end
-    if HUB.activeTarget and HUB.activeTarget.uid == uid then return end
-    HUB.activeTarget = { uid = uid, name = eggName, priority = true }
-    if setStatus then setStatus("🎯 Pegando " .. eggName .. "...", true) end
-    if not HUB.running then
-        task.spawn(function()
-            local waited = 0
-            while HUB.busy and waited < 10 do
-                RunService.Heartbeat:Wait()
-                waited = waited + 0.1
-            end
-            if HUB.dead then HUB.activeTarget = nil return end
-            HUB.busy = true
-            local success = false
-            local _, hrpPre = getChar()
-            local flyPos = hrpPre and hrpPre.Position
-            pcall(function()
-                local rec = findRecord(uid)
-                if rec then success = stealEgg(rec) end
-            end)
-            if success then
-                pcall(function() returnHome(flyPos) end)
-            else
-                if setStatus then setStatus("❌ Não conseguiu pegar", false) end
-            end
-            HUB.activeTarget = nil
-            HUB.busy = false
-        end)
-    end
-end
-
-local function createRow(egg, order)
-local row = Instance.new("Frame") row.Name=egg.uid row.Size=UDim2.new(1,0,0,64) row.BackgroundColor3=THEME.rowNormal row.BorderSizePixel=0 row.LayoutOrder=order row.ClipsDescendants=true row.Parent=content
-Instance.new("UICorner", row).CornerRadius=UDim.new(0,10)
-local rowStroke = Instance.new("UIStroke", row) rowStroke.Color=THEME.strokeSoft rowStroke.Thickness=1 rowStroke.Transparency=0.5
-local clicker = Instance.new("TextButton") clicker.Size=UDim2.fromScale(1,1) clicker.BackgroundTransparency=1 clicker.Text="" clicker.AutoButtonColor=false clicker.ZIndex=5 clicker.Parent=row
-local photoFrame = Instance.new("Frame") photoFrame.Size=UDim2.fromOffset(56,56) photoFrame.Position=UDim2.fromOffset(4,4) photoFrame.BackgroundColor3=Color3.fromRGB(18,4,10) photoFrame.BorderSizePixel=0 photoFrame.ZIndex=2 photoFrame.Parent=row
-Instance.new("UICorner", photoFrame).CornerRadius=UDim.new(0,8)
-local photo = Instance.new("ImageLabel") photo.Size=UDim2.fromScale(1,1) photo.BackgroundTransparency=1 photo.ScaleType=Enum.ScaleType.Fit photo.Image=egg.icon or "" photo.ZIndex=3 photo.Parent=photoFrame
-Instance.new("UICorner", photo).CornerRadius=UDim.new(0,8)
-local nm = Instance.new("TextLabel") nm.Size=UDim2.new(1,-74,0,20) nm.Position=UDim2.fromOffset(68,6) nm.BackgroundTransparency=1 nm.Font=Enum.Font.GothamBold nm.TextSize=15 nm.TextColor3=THEME.text nm.TextXAlignment=Enum.TextXAlignment.Left nm.TextTruncate=Enum.TextTruncate.AtEnd nm.Text=egg.name nm.ZIndex=2 nm.Parent=row
-local gen = Instance.new("TextLabel") gen.Size=UDim2.new(1,-74,0,16) gen.Position=UDim2.fromOffset(68,26) gen.BackgroundTransparency=1 gen.Font=Enum.Font.GothamBold gen.TextSize=12 gen.TextColor3=THEME.genGreen gen.TextXAlignment=Enum.TextXAlignment.Left gen.Text=string.format("Gen %s    KG %s    📍 %s", fmtValue(egg.value), fmtKg(egg.kg), egg.area) gen.ZIndex=2 gen.Parent=row
-local rar = Instance.new("TextLabel") rar.Size=UDim2.new(1,-74,0,16) rar.Position=UDim2.fromOffset(68,44) rar.BackgroundTransparency=1 rar.Font=Enum.Font.GothamBold rar.TextSize=12 rar.TextColor3=egg.rcolor or RARITY_COLOR[egg.rarity] or THEME.textMuted rar.TextXAlignment=Enum.TextXAlignment.Left rar.Text="Rarity " .. egg.rarity rar.ZIndex=2 rar.Parent=row
-local isPicked = (HUB.selectedUid == egg.uid) if isPicked then row.BackgroundColor3 = THEME.rowPicked end
-clicker.MouseEnter:Connect(function() TweenService:Create(row, TweenInfo.new(0.15), { BackgroundColor3 = isPicked and THEME.rowPickedHv or THEME.rowHover }):Play() TweenService:Create(rowStroke, TweenInfo.new(0.15), { Transparency = 0 }):Play() end)
-clicker.MouseLeave:Connect(function() TweenService:Create(row, TweenInfo.new(0.15), { BackgroundColor3 = isPicked and THEME.rowPicked or THEME.rowNormal }):Play() TweenService:Create(rowStroke, TweenInfo.new(0.15), { Transparency = 0.5 }):Play() end)
-clicker.MouseButton1Click:Connect(function()
-    if HUB.selectedUid and rowMap[HUB.selectedUid] then local prev = rowMap[HUB.selectedUid] prev.isPicked = false TweenService:Create(prev.frame, TweenInfo.new(0.2), { BackgroundColor3 = THEME.rowNormal }):Play() end
-    HUB.selectedUid = egg.uid isPicked = true TweenService:Create(row, TweenInfo.new(0.2), { BackgroundColor3 = THEME.rowPicked }):Play()
-    if setStatus then setStatus("🎯 " .. egg.name .. " · " .. egg.area, false) end
-    SingleClickPickup(egg.uid, egg.name)
-end)
-local entry = { frame=row, genLbl=gen, rarLbl=rar, nameLbl=nm, photo=photo, isPicked=isPicked, lastGenText=gen.Text, lastRarText=rar.Text, lastRarColor=rar.TextColor3 }
-rowMap[egg.uid] = entry return entry
-end
-local function refreshEggList()
-local eggs = getFieldEggs()
-if HUB.sortMode=="GEN" then table.sort(eggs, function(a,b) if a.value~=b.value then return a.value>b.value end return a.rank>b.rank end)
-else table.sort(eggs, function(a,b) if a.rank~=b.rank then return a.rank>b.rank end return a.value>b.value end) end
-local seen = {} local newIcons = {}
-for i, e in ipairs(eggs) do
-seen[e.uid] = true
-local r = rowMap[e.uid]
-if not r then r = createRow(e, i) if e.icon then newIcons[#newIcons+1] = e.icon end
-else
-r.frame.LayoutOrder = i
-local genText = string.format("Gen %s    KG %s    📍 %s", fmtValue(e.value), fmtKg(e.kg), e.area)
-if r.lastGenText ~= genText then r.genLbl.Text = genText r.lastGenText = genText end
-local rarText = "Rarity " .. e.rarity local rarColor = e.rcolor or RARITY_COLOR[e.rarity] or THEME.textMuted
-if r.lastRarText ~= rarText then r.rarLbl.Text = rarText r.lastRarText = rarText end
-if r.lastRarColor ~= rarColor then r.rarLbl.TextColor3 = rarColor r.lastRarColor = rarColor end
-if r.nameLbl.Text ~= e.name then r.nameLbl.Text = e.name end
-if e.icon and r.photo.Image ~= e.icon then r.photo.Image = e.icon newIcons[#newIcons+1] = e.icon end
-local picked = (HUB.selectedUid == e.uid)
-if picked ~= r.isPicked then r.isPicked = picked r.frame.BackgroundColor3 = picked and THEME.rowPicked or THEME.rowNormal end
-end
-end
-local toRemove = {} for uid in pairs(rowMap) do if not seen[uid] then toRemove[#toRemove+1] = uid end end
-for _, uid in ipairs(toRemove) do local r = rowMap[uid] if r and r.frame then r.frame:Destroy() end rowMap[uid] = nil end
-if #newIcons > 0 then task.spawn(function() pcall(function() ContentProvider:PreloadAsync(newIcons) end) end) end
-if HUB.selectedUid and not seen[HUB.selectedUid] then HUB.selectedUid = nil if setStatus then setStatus("🎯 Ovo saiu do campo", false) end end
-emptyLbl.Visible = (#eggs == 0)
-end
-tabGen.MouseButton1Click:Connect(function() HUB.sortMode = "GEN" paintTabs() refreshDirty = true end)
-tabRar.MouseButton1Click:Connect(function() HUB.sortMode = "RARITY" paintTabs() refreshDirty = true end)
-
-btnGo.MouseButton1Click:Connect(function()
-if HUB.running then return end
-HUB.running = true
-HUB.dead = false
-HUB.busy = false
-HUB.activeTarget = nil
-ChickenBossFarm.enabled = true
-ChickenBossFarm.stage = "idle"
-if setStatus then setStatus("🐔 Galinha primeiro...", true) end
-task.spawn(function()
-    while ChickenBossFarm.enabled and ChickenBossFarm.stage ~= "done" and HUB.running do
-        pcall(RunChickenSequence)
-        task.wait(0.3)
-    end
-end)
-task.spawn(function()
-    while ChickenBossFarm.stage ~= "done" and HUB.running do task.wait(0.1) end
-    if not HUB.running then return end
-    if setStatus then setStatus("🟢 Auto Steal rodando (chão)", true) end
-    while HUB.running do
-        local ok, err = pcall(runCycle)
-        if not ok then warn("[DARK HUB]", err) HUB.busy = false HUB.activeTarget = nil end
-        task.wait(0.3)
-    end
-end)
-end)
-btnStop.MouseButton1Click:Connect(function()
-HUB.running = false
-HUB.dead = true
-HUB.busy = false
-HUB.activeTarget = nil
-ChickenBossFarm.enabled = false
-ChickenBossFarm.stage = "idle"
-if setStatus then setStatus("⏸ Parado", false) end
-end)
-
-do
-local dragging, dragStart, panelStart
-header.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=true dragStart=input.Position panelStart=win.Position end end)
-UIS.InputChanged:Connect(function(input) if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then local d = input.Position - dragStart win.Position=UDim2.new(panelStart.X.Scale, panelStart.X.Offset + d.X, panelStart.Y.Scale, panelStart.Y.Offset + d.Y) end end)
-UIS.InputEnded:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end end)
-end-- ⚙️ ENGRENAGEM ESTEIRA ADMIN
+-- GEAR PANEL
 local gearBtn = Instance.new("TextButton")
 gearBtn.Size = UDim2.fromOffset(24, 24)
 gearBtn.Position = UDim2.new(0, 140, 0.5, -12)
@@ -1239,12 +1148,154 @@ task.spawn(function()
     end
 end)
 
+-- 1-CLICK UNIVERSAL
+local function SingleClickPickup(uid, eggName)
+    if HUB.dead then return end
+    if HUB.activeTarget and HUB.activeTarget.uid == uid then return end
+    HUB.activeTarget = { uid = uid, name = eggName, priority = true }
+    if setStatus then setStatus("🎯 Pegando " .. eggName .. "...", true) end
+    if not HUB.running then
+        task.spawn(function()
+            local waited = 0
+            while HUB.busy and waited < 10 do
+                RunService.Heartbeat:Wait()
+                waited = waited + 0.1
+            end
+            if HUB.dead then HUB.activeTarget = nil return end
+            HUB.busy = true
+            local success = false
+            local _, hrpPre = getChar()
+            local flyPos = hrpPre and hrpPre.Position
+            pcall(function()
+                local rec = findRecord(uid)
+                if rec then success = stealEgg(rec) end
+            end)
+            if success then
+                pcall(function() returnHome(flyPos) end)
+            else
+                if setStatus then setStatus("❌ Não conseguiu pegar", false) end
+            end
+            HUB.activeTarget = nil
+            HUB.busy = false
+        end)
+    end
+end
+
+local function createRow(egg, order)
+local row = Instance.new("Frame") row.Name=egg.uid row.Size=UDim2.new(1,0,0,64) row.BackgroundColor3=THEME.rowNormal row.BorderSizePixel=0 row.LayoutOrder=order row.ClipsDescendants=true row.Parent=content
+Instance.new("UICorner", row).CornerRadius=UDim.new(0,10)
+local rowStroke = Instance.new("UIStroke", row) rowStroke.Color=THEME.strokeSoft rowStroke.Thickness=1 rowStroke.Transparency=0.5
+local clicker = Instance.new("TextButton") clicker.Size=UDim2.fromScale(1,1) clicker.BackgroundTransparency=1 clicker.Text="" clicker.AutoButtonColor=false clicker.ZIndex=5 clicker.Parent=row
+local photoFrame = Instance.new("Frame") photoFrame.Size=UDim2.fromOffset(56,56) photoFrame.Position=UDim2.fromOffset(4,4) photoFrame.BackgroundColor3=Color3.fromRGB(18,4,10) photoFrame.BorderSizePixel=0 photoFrame.ZIndex=2 photoFrame.Parent=row
+Instance.new("UICorner", photoFrame).CornerRadius=UDim.new(0,8)
+local photo = Instance.new("ImageLabel") photo.Size=UDim2.fromScale(1,1) photo.BackgroundTransparency=1 photo.ScaleType=Enum.ScaleType.Fit photo.Image=egg.icon or "" photo.ZIndex=3 photo.Parent=photoFrame
+Instance.new("UICorner", photo).CornerRadius=UDim.new(0,8)
+local nm = Instance.new("TextLabel") nm.Size=UDim2.new(1,-74,0,20) nm.Position=UDim2.fromOffset(68,6) nm.BackgroundTransparency=1 nm.Font=Enum.Font.GothamBold nm.TextSize=15 nm.TextColor3=THEME.text nm.TextXAlignment=Enum.TextXAlignment.Left nm.TextTruncate=Enum.TextTruncate.AtEnd nm.Text=egg.name nm.ZIndex=2 nm.Parent=row
+local gen = Instance.new("TextLabel") gen.Size=UDim2.new(1,-74,0,16) gen.Position=UDim2.fromOffset(68,26) gen.BackgroundTransparency=1 gen.Font=Enum.Font.GothamBold gen.TextSize=12 gen.TextColor3=THEME.genGreen gen.TextXAlignment=Enum.TextXAlignment.Left gen.Text=string.format("Gen %s    KG %s    📍 %s", fmtValue(egg.value), fmtKg(egg.kg), egg.area) gen.ZIndex=2 gen.Parent=row
+local rar = Instance.new("TextLabel") rar.Size=UDim2.new(1,-74,0,16) rar.Position=UDim2.fromOffset(68,44) rar.BackgroundTransparency=1 rar.Font=Enum.Font.GothamBold rar.TextSize=12 rar.TextColor3=egg.rcolor or RARITY_COLOR[egg.rarity] or THEME.textMuted rar.TextXAlignment=Enum.TextXAlignment.Left rar.Text="Rarity " .. egg.rarity rar.ZIndex=2 rar.Parent=row
+local isPicked = (HUB.selectedUid == egg.uid) if isPicked then row.BackgroundColor3 = THEME.rowPicked end
+clicker.MouseEnter:Connect(function() TweenService:Create(row, TweenInfo.new(0.15), { BackgroundColor3 = isPicked and THEME.rowPickedHv or THEME.rowHover }):Play() TweenService:Create(rowStroke, TweenInfo.new(0.15), { Transparency = 0 }):Play() end)
+clicker.MouseLeave:Connect(function() TweenService:Create(row, TweenInfo.new(0.15), { BackgroundColor3 = isPicked and THEME.rowPicked or THEME.rowNormal }):Play() TweenService:Create(rowStroke, TweenInfo.new(0.15), { Transparency = 0.5 }):Play() end)
+clicker.MouseButton1Click:Connect(function()
+    if HUB.selectedUid and rowMap[HUB.selectedUid] then local prev = rowMap[HUB.selectedUid] prev.isPicked = false TweenService:Create(prev.frame, TweenInfo.new(0.2), { BackgroundColor3 = THEME.rowNormal }):Play() end
+    HUB.selectedUid = egg.uid isPicked = true TweenService:Create(row, TweenInfo.new(0.2), { BackgroundColor3 = THEME.rowPicked }):Play()
+    if setStatus then setStatus("🎯 " .. egg.name .. " · " .. egg.area, false) end
+    SingleClickPickup(egg.uid, egg.name)
+end)
+local entry = { frame=row, genLbl=gen, rarLbl=rar, nameLbl=nm, photo=photo, isPicked=isPicked, lastGenText=gen.Text, lastRarText=rar.Text, lastRarColor=rar.TextColor3 }
+rowMap[egg.uid] = entry return entry
+end
+local function refreshEggList()
+local eggs = getFieldEggs()
+if HUB.sortMode=="GEN" then table.sort(eggs, function(a,b) if a.value~=b.value then return a.value>b.value end return a.rank>b.rank end)
+else table.sort(eggs, function(a,b) if a.rank~=b.rank then return a.rank>b.rank end return a.value>b.value end) end
+local seen = {} local newIcons = {}
+for i, e in ipairs(eggs) do
+seen[e.uid] = true
+local r = rowMap[e.uid]
+if not r then r = createRow(e, i) if e.icon then newIcons[#newIcons+1] = e.icon end
+else
+r.frame.LayoutOrder = i
+local genText = string.format("Gen %s    KG %s    📍 %s", fmtValue(e.value), fmtKg(e.kg), e.area)
+if r.lastGenText ~= genText then r.genLbl.Text = genText r.lastGenText = genText end
+local rarText = "Rarity " .. e.rarity local rarColor = e.rcolor or RARITY_COLOR[e.rarity] or THEME.textMuted
+if r.lastRarText ~= rarText then r.rarLbl.Text = rarText r.lastRarText = rarText end
+if r.lastRarColor ~= rarColor then r.rarLbl.TextColor3 = rarColor r.lastRarColor = rarColor end
+if r.nameLbl.Text ~= e.name then r.nameLbl.Text = e.name end
+if e.icon and r.photo.Image ~= e.icon then r.photo.Image = e.icon newIcons[#newIcons+1] = e.icon end
+local picked = (HUB.selectedUid == e.uid)
+if picked ~= r.isPicked then r.isPicked = picked r.frame.BackgroundColor3 = picked and THEME.rowPicked or THEME.rowNormal end
+end
+end
+local toRemove = {} for uid in pairs(rowMap) do if not seen[uid] then toRemove[#toRemove+1] = uid end end
+for _, uid in ipairs(toRemove) do local r = rowMap[uid] if r and r.frame then r.frame:Destroy() end rowMap[uid] = nil end
+if #newIcons > 0 then task.spawn(function() pcall(function() ContentProvider:PreloadAsync(newIcons) end) end) end
+if HUB.selectedUid and not seen[HUB.selectedUid] then HUB.selectedUid = nil if setStatus then setStatus("🎯 Ovo saiu do campo", false) end end
+emptyLbl.Visible = (#eggs == 0)
+end
+tabGen.MouseButton1Click:Connect(function() HUB.sortMode = "GEN" paintTabs() refreshDirty = true end)
+tabRar.MouseButton1Click:Connect(function() HUB.sortMode = "RARITY" paintTabs() refreshDirty = true end)
+
+btnGo.MouseButton1Click:Connect(function()
+if HUB.running then return end
+HUB.running = true
+HUB.dead = false
+HUB.busy = false
+HUB.activeTarget = nil
+ChickenBossFarm.enabled = true
+ChickenBossFarm.stage = "idle"
+if setStatus then setStatus("🐔 Galinha primeiro...", true) end
+task.spawn(function()
+    while ChickenBossFarm.enabled and ChickenBossFarm.stage ~= "done" and HUB.running do
+        pcall(RunChickenSequence)
+        task.wait(0.3)
+    end
+end)
+task.spawn(function()
+    while ChickenBossFarm.stage ~= "done" and HUB.running do task.wait(0.1) end
+    if not HUB.running then return end
+    if setStatus then setStatus("🟢 Auto Steal rodando (chão)", true) end
+    while HUB.running do
+        local ok, err = pcall(runCycle)
+        if not ok then warn("[DARK HUB]", err) HUB.busy = false HUB.activeTarget = nil end
+        task.wait(0.3)
+    end
+end)
+end)
+btnStop.MouseButton1Click:Connect(function()
+HUB.running = false
+HUB.dead = true
+HUB.busy = false
+HUB.activeTarget = nil
+ChickenBossFarm.enabled = false
+ChickenBossFarm.stage = "idle"
+if setStatus then setStatus("⏸ Parado", false) end
+end)
+
+do
+local dragging, dragStart, panelStart
+header.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=true dragStart=input.Position panelStart=win.Position end end)
+UIS.InputChanged:Connect(function(input) if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then local d = input.Position - dragStart win.Position=UDim2.new(panelStart.X.Scale, panelStart.X.Offset + d.X, panelStart.Y.Scale, panelStart.Y.Offset + d.Y) end end)
+UIS.InputEnded:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end end)
+end
+
 paintTabs()
 task.spawn(function() task.wait(0.4) refreshEggList() end)
-local lastRefresh = 0
-task.spawn(function() while screenGui.Parent do RunService.Heartbeat:Wait() local now = tick() if refreshDirty or (now - lastRefresh >= 0.1) then refreshDirty = false lastRefresh = now pcall(refreshEggList) end end end)
 
--- ⭐ HIT V1 SILENCIOSO — teleporta → voa pra base → planta → volta voando
+-- 🔥 OTIMIZAÇÃO: refresh da lista a 5 Hz em vez de 10 Hz, e só quando precisa
+local lastRefresh = 0
+task.spawn(function()
+    while screenGui.Parent do
+        RunService.Heartbeat:Wait()
+        local now = tick()
+        if refreshDirty or (now - lastRefresh >= 0.2) then
+            refreshDirty = false
+            lastRefresh = now
+            pcall(refreshEggList)
+        end
+    end
+end)
+
 doHitTeleport = function()
     if hitActive then return end
     hitActive = true
@@ -1256,10 +1307,12 @@ doHitTeleport = function()
         hitActive = false
     end)
 end
+
+-- 🔥 OTIMIZAÇÃO: HIT watcher 4x por segundo em vez de 10x
 local __wasCarrying = false
 task.spawn(function()
 while true do
-task.wait(0.1)
+task.wait(0.25)
 local carrying = isCarryingEgg()
 if carrying and not __wasCarrying and not HUB.running and HUB.hitEnabled then
 doHitTeleport()
@@ -1269,7 +1322,6 @@ end
 end)
 print("[HIT V1] Auto-teleport silencioso carregado")
 
--- HP watcher da galinha
 RunService.Heartbeat:Connect(function()
 if not ChickenBossFarm.enabled then return end
 if ChickenBossFarm.stage ~= "waiting_hit" then return end
@@ -1287,9 +1339,7 @@ end
 ChickenBossFarm.lastHealth = ch
 end)
 
--- ═══════════════════════════════════════════════════════════════
--- ⚔️ AUTO-HIT — Bate em quem estiver carregando ovo
--- ═══════════════════════════════════════════════════════════════
+-- AUTO-HIT
 local AutoHitSystem = {
     lastHit = 0,
     cooldown = 0.35,
@@ -1351,26 +1401,20 @@ local function runAutoHit()
     if HUB.dead then return end
     if not HUB.hitEnabled then return end
     if os.clock() - AutoHitSystem.lastHit < AutoHitSystem.cooldown then return end
-
     local target = findEnemyCarrier()
     if not target then
         AutoHitSystem.currentTarget = nil
         return
     end
-
     AutoHitSystem.busy = true
-
     local cHrp = getPlayerHrp(target.carrier)
     local _, myHrp = getChar()
     if not cHrp or not myHrp then
         AutoHitSystem.busy = false
         return
     end
-
     AutoHitSystem.currentTarget = target.carrier.Name
-
     local dist = (myHrp.Position - cHrp.Position).Magnitude
-
     if dist > 12 then
         local moveTo = cHrp.Position + cHrp.CFrame.LookVector * 3 + Vector3.new(0, 2, 0)
         myHrp.CFrame = CFrame.new(moveTo)
@@ -1383,14 +1427,12 @@ local function runAutoHit()
         SyncHoverPad()
         task.wait(0.08)
     end
-
     pcall(function()
         myHrp.CFrame = CFrame.lookAt(
             myHrp.Position,
             Vector3.new(cHrp.Position.X, myHrp.Position.Y, cHrp.Position.Z)
         )
     end)
-
     local weapon = equipBestWeapon()
     if weapon then
         pcall(function() weapon:Activate() end)
@@ -1403,13 +1445,13 @@ local function runAutoHit()
     else
         if setStatus then setStatus("❌ Sem arma no inventário", false) end
     end
-
     AutoHitSystem.busy = false
 end
 
+-- 🔥 OTIMIZAÇÃO: auto-hit a cada 0.2s em vez de Heartbeat (60x/s)
 task.spawn(function()
     while screenGui.Parent do
-        RunService.Heartbeat:Wait()
+        task.wait(0.2)
         if HUB.hitEnabled then
             pcall(runAutoHit)
         end
@@ -1427,32 +1469,10 @@ task.spawn(function()
         end
     end
 end)
-print("[AUTO-HIT] Sistema carregado")) b.Position=UDim2.new(1,xOff,0.5,-19) b.BackgroundColor3=bg b.BorderSizePixel=0 b.Font=Enum.Font.GothamBlack b.TextSize=14 b.TextColor3=THEME.text b.Text=text b.AutoButtonColor=false b.Parent=footer
-Instance.new("UICorner", b).CornerRadius=UDim.new(0,8)
-local s = Instance.new("UIStroke", b) s.Color=Color3.fromRGB(255,255,255) s.Thickness=1 s.Transparency=0.75
-b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = bgHover }):Play() end)
-b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = bg }):Play() end)
-return b
-end
-local btnGo   = makeFooterBtn("GO",   -208, THEME.goGreen, THEME.goGreenHv)
-local btnStop = makeFooterBtn("STOP", -106, THEME.stopRed, THEME.stopRedHv)
+print("[AUTO-HIT] Sistema carregado")
 
--- refresh panels quando método muda (variável no escopo)
-local _origMethodSet = nil
-for _, opt in ipairs(methodMenu:GetChildren()) do
-    if opt:IsA("TextButton") then
-        opt.Activated:Connect(refreshMethodPanels)
-    end
-end
-refreshMethodPanels()
-
--- ============================================================
--- ROW MAP + REFRESH
--- ============================================================
-local rowMap = {} local refreshDirty = true
-if EggState then pcall(function()
-if EggState.FieldRefreshed then EggState.FieldRefreshed:Connect(function() refreshDirty = true end) end
-if EggState.FieldShifted then EggState.FieldShifted:Connect(function() refreshDirty = true end) end
+_G.__DarkHubV33 = screenGui
+print("[DARK HUB v33.2] carregado — otimizado, sem lag.") refreshDirty = true end) end
 if EggState.FieldGone then EggState.FieldGone:Connect(function() refreshDirty = true end) end
 if EggState.FieldClaimed then EggState.FieldClaimed:Connect(function() refreshDirty = true end) end
 end) end
